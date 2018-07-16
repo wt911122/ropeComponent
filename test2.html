@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>rope</title>
+</head>
+<body>
+  <canvas id="curve" width="300px" height="300px"></canvas>
+  <input id="action" type="button" name="" value="action!">
+  <script type="text/javascript">
+
+function Particle(x, y, mass) {
+    this.x = x || 0;
+    this.y = y || 0;
+    this.ox = this.x;
+    this.oy = this.y;
+    this.mass = mass || 1.0;
+    this.massInv = 1.0 / this.mass;
+    this.fixed = false;
+
+    this.update = function () {
+
+    };
+}
+
+function Spring(p1, p2, restLength, strength) {
+
+    this.p1 = p1;
+    this.p2 = p2;
+    this.restLength = restLength || 10;
+    this.strength = strength || 1.0;
+
+    this.update = function () {
+
+        // Compute desired force
+        var dx = p2.x - p1.x,
+            dy = p2.y - p1.y,
+            dd = Math.sqrt(dx * dx + dy * dy) + 0.0001,
+            tf = (dd - this.restLength) / (dd * (p1.massInv + p2.massInv)) * this.strength,
+            f;
+
+        // Apply forces
+        if (!p1.fixed) {
+            f = tf * p1.massInv;
+            p1.x += dx * f;
+            p1.y += dy * f;
+        }
+
+        if (!p2.fixed) {
+            f = -tf * p2.massInv;
+            p2.x += dx * f;
+            p2.y += dy * f;
+        }
+    };
+}
+
+function Sim() {
+
+    this.particles = [];
+    this.springs = [];
+
+    this.tick = function (dt) {
+        var p = this.particles.length;
+        while (p--) this.particles[p].update();
+
+        var s = this.springs.length;
+        while (s--) this.springs[s].update();
+    };
+}
+
+
+// Create a new system
+var sim = new Sim(),
+    old = new Date().getTime(),
+    canvas = document.getElementById('curve'),
+    ctx = canvas.getContext('2d'),
+    width = canvas.width = window.innerWidth,
+    height = canvas.height = window.innerHeight;
+
+function init() {
+
+    var op,
+        mouse,
+        anchor,
+        step = 3,
+        length = 300,
+        count = length / step;
+
+    for (var i = 0; i < count; ++i) {
+
+        var np = new Particle(i * step, 20, 10);
+        sim.particles.push(np);
+
+        if (i > 0) sim.springs.push(new Spring(np, op, step, 1.0));
+
+        op = np;
+    }
+
+    // Fix the first particle
+    anchor = sim.particles[0];
+    anchor.fixed = false;
+    anchor.x = 50;
+    anchor.y = 50;
+
+    // Move last particle with mouse
+    mouse = sim.particles[count - 1];
+    mouse.fixed = true;
+
+    canvas.addEventListener('mousemove', function (event) {
+        mouse.x = event.offsetX;
+        mouse.y = event.offsetY;
+    });
+};
+
+function step() {
+
+    var now = new Date().getTime(),
+        delta = now - old;
+
+    sim.tick(delta);
+
+    // Draw
+    ctx.clearRect(0, 0, width, height);
+
+    var p = sim.particles.length;
+    /*while (p--) {
+        var particle = sim.particles[p];
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, 5, Math.PI * 2, false);
+        ctx.strokeStyle = 'black';
+        ctx.fill();
+    }*/
+
+    var s = sim.springs.length;
+    while (s--) {
+        var spring = sim.springs[s];
+        ctx.beginPath();
+        ctx.moveTo(spring.p1.x, spring.p1.y);
+        ctx.lineTo(spring.p2.x, spring.p2.y);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    old = now;
+};
+
+  init();
+  setInterval(step, 1000 / 30);
+  </script>
+  <script type="text/javascript">
+  </script>
+</body>
+</html>

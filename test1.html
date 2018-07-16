@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="format-detection" content="telphone=no, email=no" />
+  <style type="text/css">
+    body, html{
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #action {
+      position: absolute;
+      left: 20px;
+      top: 20px;
+    }
+    #canvas{
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+    .container{
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      overflow-y: scroll;
+    }
+    .ul{
+      margin-top: 143px;
+      list-style: none;
+      padding: 0;
+      text-align: center;
+      text-indent: 10em;
+    }
+    .ul > li {
+      height: 122px
+    }
+
+  </style>
+</head>
+<body>
+
+  <canvas id="canvas"></canvas>
+  <div class="container">
+    <ul id="storyboard" class="ul">
+    </ul>
+  </div>
+  <input type="button" name="" id="action" value=action>
+</body>
+<script type="text/javascript">
+  const canvas = document.getElementById("canvas");
+  const actbtn = document.getElementById("action");
+  const ctx = canvas.getContext('2d');
+
+  const width = canvas.width = window.innerWidth;
+  const height = canvas.height = window.innerHeight;
+  const bottomY = height - 5;
+  const topY = height - 150;
+
+  const middle = width / 2;
+
+  const translate = (x) => {
+    return x - middle;
+  }
+
+  const translateBack = (x) => {
+    return x + middle;
+  }
+  const draw = (pt) => {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 5, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+
+  function drawBezier(from, to) {
+    ctx.beginPath()
+    ctx.moveTo(from.x, from.y);
+    //console.log(from, to )
+    ctx.quadraticCurveTo(to.x, from.y, to.x, to.y);
+    ctx.stroke();
+  }
+
+  const drawLine = (fromPt, l, radius, y_inc, dir) =>{
+    if(l < 0) return {x: fromPt.x, y:fromPt.y+y_inc};
+    const left = translateBack(-radius);
+    const right = translateBack(radius);
+    let dist = radius;
+    let togo = 0, nextPt;
+
+    ctx.moveTo(fromPt.x, fromPt.y);
+    if(dir > 0){
+      // 向右
+      togo = right - fromPt.x;
+      if(togo > l){
+        dist = translate(fromPt.x + l);
+      }
+      nextPt = { x:translateBack(dist), y:fromPt.y };
+      ctx.lineTo(nextPt.x, nextPt.y);
+      nextPt.y -= y_inc;
+      if(togo < l)
+        ctx.quadraticCurveTo(nextPt.x + 8, fromPt.y - y_inc / 2, nextPt.x, nextPt.y);
+
+    }else{
+      //向左
+      togo = fromPt.x - left;
+      if(togo > l){
+
+        dist = -translate(fromPt.x - l);
+        //console.log(fromPt.x , l, fromPt.x - l, dist)
+      }
+      nextPt = { x:translateBack(-dist), y:fromPt.y };
+      ctx.lineTo(nextPt.x, nextPt.y);
+      nextPt.y -= y_inc;
+      if(togo < l)
+        ctx.quadraticCurveTo(nextPt.x - 8, fromPt.y - y_inc / 2, nextPt.x, nextPt.y);
+    }
+
+    return drawLine(nextPt, l - togo, radius, y_inc, -dir);
+  }
+
+  const drawBubblesGenerator = (num, bottomY, bubbleSpan, offsetHeight) => {
+    let start = 0;
+    let bubbleExpansion = 80;
+    let bubble_radius = 6;
+    let step = bubble_radius / bubbleExpansion;
+
+    const bubbles = [];
+
+    start += offsetHeight;
+    while(num--){
+      bubbles.push({
+        x: middle,
+        y: 0,
+        yinit: start,
+        r: 0,
+        show: false
+      });
+      start += bubbleSpan;
+    }
+    // 初始化
+    /*while(start < bottomY){
+      bubbles.push({
+        x: middle, y: start,
+        yinit: start,
+        linit: 0,
+        r: bottomY - start > bubbleExpansion ? bubble_radius: step * (bottomY - start)});
+      start += bubbleSpan;
+      console.log(start)
+    }*/
+    function isVisible(bubble, length){
+      const view = bubble.yinit - length;
+      return view > 0 && view < bottomY;
+    }
+    return (length) => {
+      //console.log(bubble.x, bubble.y - length)
+      let bb;
+      // 根据距离调整泡泡
+      for (let i = 0; i < bubbles.length; i++) {
+        bb = bubbles[i]
+        if(isVisible(bb, length)){
+          bb.y = bb.yinit - length;
+          bb.r = bottomY - bb.y > bubbleExpansion ? bubble_radius: step*(bottomY - bb.y);
+          bb.show = true
+        }else{
+          bb.show = false;
+        }
+      }
+
+
+      // 渲染
+      for (let i = 0; i < bubbles.length; i++) {
+        let bubble = bubbles[i];
+        if(bubble.show){
+          ctx.beginPath();
+          ctx.arc(bubble.x, bubble.y, bubble.r, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+
+      }
+
+
+
+    }
+
+  }
+
+  const action = (radius, y_inc, length)=> {
+    let l = 0,
+        remain = length,
+        lastPT;
+    // 初始化最底部起点
+    const pt = {}
+    pt.x = translateBack(0);
+    pt.y = bottomY;
+    topPt = {};
+    topPt.x = translateBack(0);
+    topPt.y = topY;
+
+    drawLine(pt, length, radius, y_inc, 1);
+    ctx.stroke();
+    const bubbleTick = drawBubblesGenerator(20, topY ,122, 156);
+    return (delta) => {
+      l += delta;
+      remain -= delta;
+      //console.log(remain)
+      ctx.strokeStyle = "#f17c67";
+      ctx.fillStyle = "#f17c67";
+      ctx.clearRect(0, 0, width, height);
+      ctx.beginPath();
+      lastPT = drawLine(pt, remain, radius, y_inc, 1);
+      ctx.stroke();
+      drawBezier(lastPT, topPt)
+      ctx.moveTo(topPt.x, topPt.y);
+      ctx.lineTo(topPt.x, 0);
+      ctx.stroke();
+      bubbleTick(l)
+    }
+
+  }
+  var story = document.getElementById('storyboard');
+  function renderList(times){
+    var content = "";
+    while(times--){
+      content += `<li>journal ${times}</li>`
+    }
+    story.innerHTML = content;
+  }
+  renderList(20);
+  var parent = story.parentNode;
+  console.log(story.offsetHeight)
+  const radius = 50;
+  const handler = action(radius, 5, story.offsetHeight - parent.offsetHeight);
+  let lt = 0, nt;
+  handler(0);
+  parent.addEventListener('scroll', function(){
+    nt = parent.scrollTop;
+    handler(nt - lt);
+    lt = nt
+  })
+  //actbtn.onclick = action(300, 2, 5, 30, 2000);
+</script>
+</html>

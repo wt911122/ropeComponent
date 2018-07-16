@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>rope</title>
+  <style type="text/css">
+    .curve-bag{
+      overflow: hidden;
+      border-collapse: collapse;
+    }
+    .curve{
+      float: right;
+      width: 100px;
+      height: 100px;
+      border: solid 5px #000;
+      border-left-width: 0;
+      border-color: transparent transparent #000 transparent;
+      border-radius: 0 0 100%/100% 0;
+      animation: rope 1.5s ease-out, disapear 0s linear 1.5s;
+      -webkit-animation-fill-mode: forwards;
+      transform: translate(0, -5px);
+    }
+
+    .curve-reverse{
+      float: left;
+      !visibility: hidden;
+      width: 100px;
+      height: 100px;
+      border: solid 5px #000;
+      border-top-width: 0px;
+      border-color: transparent transparent transparent #000;
+      border-radius: 0 0 0 50%/100%;
+      !animation: ropereverse 1.5s ease-in 1.5s;
+      -webkit-animation-fill-mode: forwards;
+    }
+    @keyframes rope{
+      0% {
+        border-radius: 0 0 100%/100% 0;
+      }
+      100% {
+        border-radius: 0 0 0%/100% 0;
+      }
+    }
+    @keyframes disapear{
+      100% {
+
+       opacity: 0;
+      }
+    }
+    @keyframes ropereverse{
+      0% {
+        visibility: visible;
+        border-radius: 0 0 0 100%/0;
+      }
+      100% {
+        border-radius: 0 0 0 100%/100%;
+      }
+    }
+    .curve-container{
+      float: left;
+      width: 150px;
+      height: 150px;
+      overflow: hidden;
+    }
+    .right-curve{
+      transform: translateY(-5px);
+    }
+    .reverse{
+      float: left;
+      opacity: 0;
+      transform: rotateY(-180deg);
+      transform-origin: center center;
+      animation: rope 1.5s ease-out 1.5s reverse;
+      -webkit-animation-fill-mode: forwards;
+    }
+    #curve{
+      background-color: black;
+    }
+  </style>
+</head>
+<body>
+  <!-- <div class="curve-bag">
+    <div class="curve-container">
+      <div class="curve"></div>
+    </div>
+    <div class="curve-container right-curve">
+      <div class="curve reverse"></div>
+    </div>
+
+
+  </div>-->
+  <canvas id="curve" width="300px" height="300px"></canvas>
+  <input id="action" type="button" name="" value="action!">
+  <input  id="range" type="range" name="range" min="-120" max="120">
+  <span id="rangeVal"></span>
+  <script type="text/javascript">
+    var canvas = document.getElementById('curve');
+    var ctx = canvas.getContext('2d');
+    var range = document.getElementById('range');
+    var rangeVal = document.getElementById('rangeVal');
+    var actionbtn = document.getElementById('action');
+
+    (function(w){
+      var deltaS, // 上拉距离
+          layergap, // 层高
+          bottomWidth,
+          layerdecrease,
+          length,
+          topPt,
+          bendPt;
+          bendL = 50;
+
+      function Point(x, y){
+        this.x = x;
+        this.y = y;
+      }
+      Point.prototype = Object.assign({}, {
+        add: function(x, y){
+          return new Point(this.x + x, this.y + y);
+        },
+        moveX: function(x){
+          this.x += x;
+        },
+        moveY: function(y){
+          this.y += y;
+        },
+        moveToX: function(x) {
+          this.x = x;
+        },
+        moveToY: function(y) {
+          this.y = y;
+        }
+      })
+
+
+      var s_w = 80;
+      topPt = new Point(150, 0);
+      console.log(topPt);
+      bendPt = topPt.add(-50, bendL);
+
+      function drawBezier(from, to) {
+        ctx.strokeStyle = '#fff';
+        ctx.strokeWidth = 10;
+        ctx.beginPath()
+        ctx.moveTo(from.x, from.y);
+        //console.log(from, to )
+        ctx.quadraticCurveTo(to.x, from.y, to.x, to.y);
+        ctx.stroke();
+        ctx.closePath();
+      }
+
+
+
+
+      var s_h = 5;
+      var s_w_i = 2;
+      var mid = topPt.x;
+      var State = ['to-left-up', 'to-left-down', 'to-right-up', 'to-right-down']
+      function ptFactory(state, pt){
+        return {
+          state,
+          pt
+        }
+      }
+      function buildPyramid(startPt, length, startState){
+        var layer = [];
+        var y = startPt.y;
+        var x = startPt.x;
+        var i = 0;
+        var s = startState || State[0]
+        var s_w_p = s_w
+        while(length > 0){
+          switch(s){
+            case "to-left-up":
+              layer.push(ptFactory("to-left-up", {
+                x: mid - s_w_p,
+                y: y
+              }));
+              y += s_h;
+              s_w_p += s_w_i;
+              layer.push(ptFactory("to-left-down", {
+                x: mid - s_w_p,
+                y: y
+              }));
+              s = "to-right-up"
+              length -= Math.abs(x - (mid-s_w_p));
+              x = mid - s_w_p;
+              break;
+            case "to-right-up":
+              layer.push(ptFactory("to-right-up", {
+                x: mid + s_w_p,
+                y: y
+              }));
+              y += s_h;
+              s_w_p += s_w_i;
+              layer.push(ptFactory("to-right-down", {
+                x: mid + s_w_p,
+                y: y
+              }));
+              length -= Math.abs(x - (mid+s_w_p));
+              x = mid + s_w_p;
+              s = "to-left-up"
+              break;
+          }
+        }
+        return layer;
+
+      }
+
+
+      function drawline(startPt, length, state){
+        var layers = buildPyramid(startPt, length, state);
+        var i = 0, len = layers.length;
+        ctx.strokeStyle = '#fff';
+        ctx.strokeWidth = 10;
+        ctx.beginPath();
+        for(; i<len; i++){
+          var { state, pt } = layers[i];
+          if(i === 0){
+            ctx.moveTo(startPt.x, startPt.y);
+            ctx.lineTo(pt.x, pt.y);
+            continue;
+          }
+          var pt_from = layers[i-1].pt;
+         // console.log(state, pt_from)
+          switch(state){
+            case "to-left-up":
+            case "to-right-up":
+              ctx.lineTo(pt.x, pt.y);
+              break;
+            case "to-left-down":
+              ctx.quadraticCurveTo(pt.x - 8, (pt.y+ pt_from.y) / 2,pt.x, pt.y);
+              break;
+            case "to-right-down":
+              ctx.quadraticCurveTo(pt.x + 8, (pt.y+ pt_from.y) / 2,pt.x, pt.y);
+              break;
+          }
+          //console.log(pt);
+        }
+        ctx.stroke();
+        ctx.closePath();
+      }
+      bendPt.y += 100
+      drawBezier(bendPt, topPt);
+
+      drawline(bendPt, 5000, "to-left-up");
+      function getPointX(val){
+        return topPt.x + val;
+      }
+
+      range.onchange = function(){
+        var val = Number(range.value);
+        rangeVal.innerHTML = val;
+        bendPt.moveToX(topPt.x + val)
+        ctx.clearRect(0, 0, 300, 300);
+        drawBezier(bendPt, topPt)
+      }
+
+      function action(span){
+        console.log(span)
+        var minx = topPt.x - s_w;
+        var maxx = topPt.x + s_w;
+        console.log(minx, maxx)
+        var s = -1;
+        if(bendPt.x < minx || bendPt.x > maxx){
+          bendPt.moveY(s_h)
+          s_w += s_w_i
+          s = -s;
+        }
+        ctx.clearRect(0, 0, 300, 300);
+        bendPt.moveX(s*50)
+        console.log(bendPt)
+        ctx.beginPath()
+        ctx.arc(bendPt.x, bendPt.y, 5, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.closePath();
+        //drawline(bendPt, span, s>0 ? "to-right-up" :"to-left-up");
+
+      }
+
+
+      var velocity = 0.05;
+      var start = null;
+      var length = 3000;
+      function anim(timestamp) {
+        if (!start) start = timestamp;
+        // 计算滚过的距离
+        var deltatime = timestamp - start;
+        var span = deltatime * velocity;
+
+
+        console.log(span);
+        length -= Math.abs(span);
+        console.log(length);
+
+        bendPt.moveX(span)
+        //console.log(bendPt)
+        ctx.clearRect(0, 0, 300, 300);
+        //drawBezier(bendPt, topPt)
+        drawline(bendPt, length, velocity > 0 ? "to-right-up" :"to-left-up");
+        if(bendPt.x > getPointX(s_w) || bendPt.x < getPointX(-s_w)) {
+          velocity = -velocity;
+          bendPt.moveY(s_h)
+        }
+        start = timestamp;
+        if(timestamp < 10000){
+          window.requestAnimationFrame(anim);
+        }
+
+      }
+      //window.requestAnimationFrame(anim);
+      var length = 2000;
+      action(length)
+      actionbtn.onclick = function(){
+        action(length-=50);
+      }
+
+    })(window);
+
+
+  </script>
+</body>
+</html>
