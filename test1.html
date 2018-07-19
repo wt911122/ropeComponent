@@ -35,11 +35,35 @@
       margin-top: 143px;
       list-style: none;
       padding: 0;
-      text-align: center;
-      text-indent: 10em;
+      text-align: left;
+      transition: 0.5s ease-in all;
+      opacity:1;
     }
     .ul > li {
-      height: 122px
+      padding-left: 120px;
+      overflow: hidden;
+      position: relative;
+      padding-top: 20px;
+      transition: 0.5s ease-in all;
+    }
+    .ul > li::after{
+      content: ' ';
+      display: block;
+      width: 67%;
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      height: 1px;
+      background: rgba(0,0,0,0.6);
+    }
+    .ul > li > img {
+      height: 100px;
+      width: auto;
+      float: left;
+      clear:right;
+    }
+    .ul > li > p {
+      clear: left;
     }
 
   </style>
@@ -51,11 +75,93 @@
     <ul id="storyboard" class="ul">
     </ul>
   </div>
-  <input type="button" name="" id="action" value=action>
 </body>
+<script type="text/javascript" src="./js/messages.js"></script>
+<script type="text/javascript" src="./js/rope.js"></script>
 <script type="text/javascript">
   const canvas = document.getElementById("canvas");
-  const actbtn = document.getElementById("action");
+
+  const width = canvas.width = window.innerWidth;
+  const height = canvas.height = window.innerHeight;
+  const bottomY = height - 5;
+  const topY = height - 150;
+
+  const middle = width / 2;
+  const { action } = rope(canvas, 60, topY, bottomY)
+
+  function pickRandom(a) {
+    return a[Math.floor(Math.random() * a.length)];
+  }
+
+  function pickRandomPic(){
+    return `./imgs/${Math.floor(Math.random() * 12)}.jpeg`
+  }
+
+  var story = document.getElementById('storyboard');
+
+  function generateSubContent(){
+    var content = [];
+    var data = Math.floor(Math.random() * 10) + 5
+    while(data--){
+      content.unshift({
+        content: pickRandom(MESSAGES),
+        pic: pickRandomPic(),
+      })
+    }
+    return content;
+  }
+
+  function renderItem(times) {
+    var item = document.createElement('li');
+    subContent = generateSubContent();
+    var img = document.createElement('img');
+    img.src = pickRandomPic();
+    item.appendChild(img);
+
+    var p = document.createElement('p');
+    p.innerText = pickRandom(MESSAGES);
+    var text = p.innerText
+    item.appendChild(p)
+    item.onclick = function(){
+      item.style.transform = "scale(2)"
+      item.parentNode.style.opacity = 0;
+
+
+    }
+    return item;
+  }
+
+  function renderList(times){
+    var bubbleSpan = [];
+    var content = document.createDocumentFragment();;
+    while(times--){
+      content.appendChild(renderItem(times))
+    }
+    story.appendChild(content);
+    Array.prototype.forEach.call(story.children, (elem) => {
+      bubbleSpan.unshift(elem.offsetHeight);
+    })
+    return bubbleSpan
+  }
+
+
+  var bubbleSpan = renderList(20);
+  var parent = story.parentNode;
+  console.log(story.offsetHeight)
+  const radius = 50;
+  const handler = action(radius, 5, story.offsetHeight - parent.offsetHeight, "#f17c67", bubbleSpan);
+  let lt = 0, nt;
+  handler(0);
+  parent.addEventListener('scroll', function(){
+    nt = parent.scrollTop;
+    handler(nt - lt);
+    lt = nt
+  });
+
+
+  //actbtn.onclick = action(300, 2, 5, 30, 2000);
+
+    /*const actbtn = document.getElementById("action");
   const ctx = canvas.getContext('2d');
 
   const width = canvas.width = window.innerWidth;
@@ -143,16 +249,6 @@
       });
       start += bubbleSpan;
     }
-    // 初始化
-    /*while(start < bottomY){
-      bubbles.push({
-        x: middle, y: start,
-        yinit: start,
-        linit: 0,
-        r: bottomY - start > bubbleExpansion ? bubble_radius: step * (bottomY - start)});
-      start += bubbleSpan;
-      console.log(start)
-    }*/
     function isVisible(bubble, length){
       const view = bubble.yinit - length;
       return view > 0 && view < bottomY;
@@ -171,8 +267,6 @@
           bb.show = false;
         }
       }
-
-
       // 渲染
       for (let i = 0; i < bubbles.length; i++) {
         let bubble = bubbles[i];
@@ -181,13 +275,8 @@
           ctx.arc(bubble.x, bubble.y, bubble.r, 0, 2 * Math.PI);
           ctx.fill();
         }
-
       }
-
-
-
     }
-
   }
 
   const action = (radius, y_inc, length)=> {
@@ -222,27 +311,6 @@
       bubbleTick(l)
     }
 
-  }
-  var story = document.getElementById('storyboard');
-  function renderList(times){
-    var content = "";
-    while(times--){
-      content += `<li>journal ${times}</li>`
-    }
-    story.innerHTML = content;
-  }
-  renderList(20);
-  var parent = story.parentNode;
-  console.log(story.offsetHeight)
-  const radius = 50;
-  const handler = action(radius, 5, story.offsetHeight - parent.offsetHeight);
-  let lt = 0, nt;
-  handler(0);
-  parent.addEventListener('scroll', function(){
-    nt = parent.scrollTop;
-    handler(nt - lt);
-    lt = nt
-  })
-  //actbtn.onclick = action(300, 2, 5, 30, 2000);
+  }*/
 </script>
 </html>
